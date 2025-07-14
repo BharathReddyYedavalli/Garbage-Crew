@@ -20,7 +20,6 @@ base_dir = os.path.join(dataset_root, "Garbage", "garbage_classification")
 print("Base dataset path:", base_dir)
 
 
-
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
@@ -87,37 +86,57 @@ criterion = nn.CrossEntropyLoss()
 
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-# tunable iterations for training
-epochs = 5  # Start with 5 to check everything works
+# Check if trained model already exists
+save_path = "waste_classifier_resnet18.pth"
 
-for epoch in range(epochs):
-    model.train()
-    running_loss = 0.0
-    correct = 0
-    total = 0
+if os.path.exists(save_path):
+    print(f"Found existing trained model at {save_path}")
+    print("Loading existing model instead of training...")
+    
+    # Load the existing trained model
+    model.load_state_dict(torch.load(save_path, map_location=device))
+    model.eval()
+    print("Model loaded successfully!")
+    
+else:
+    print(f"No existing model found at {save_path}")
+    print("Starting training process...")
+    
+    # tunable iterations for training
+    epochs = 5  # Start with 5 to check everything works
 
-    # tqdm for live progress bar
-    loop = tqdm(train_loader, leave=True)
-    for images, labels in loop:
-        images, labels = images.to(device), labels.to(device)
+    for epoch in range(epochs):
+        model.train()
+        running_loss = 0.0
+        correct = 0
+        total = 0
 
-        # Zero gradients, forward, backward, step
-        optimizer.zero_grad()
-        outputs = model(images)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
+        # tqdm for live progress bar
+        loop = tqdm(train_loader, leave=True)
+        for images, labels in loop:
+            images, labels = images.to(device), labels.to(device)
 
-        # Running stats
-        running_loss += loss.item()
-        _, predicted = torch.max(outputs, 1)
-        total += labels.size(0)
-        correct += (predicted == labels).sum().item()
+            # Zero gradients, forward, backward, step
+            optimizer.zero_grad()
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
 
-        loop.set_description(f"Epoch [{epoch+1}/{epochs}]")
-        loop.set_postfix(loss=loss.item(), accuracy=100 * correct / total)
+            # Running stats
+            running_loss += loss.item()
+            _, predicted = torch.max(outputs, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
 
-    print(f"Epoch {epoch+1}: Loss = {running_loss/len(train_loader):.4f}, Accuracy = {100 * correct / total:.2f}%")
+            loop.set_description(f"Epoch [{epoch+1}/{epochs}]")
+            loop.set_postfix(loss=loss.item(), accuracy=100 * correct / total)
+
+        print(f"Epoch {epoch+1}: Loss = {running_loss/len(train_loader):.4f}, Accuracy = {100 * correct / total:.2f}%")
+
+    # Save the newly trained model
+    torch.save(model.state_dict(), save_path)
+    print(f"Model training completed and saved to: {save_path}")
 
 
 # evaluation mode
@@ -154,18 +173,4 @@ report = classification_report(y_true, y_pred, target_names=full_dataset.classes
 print("Classification Report:\n")
 print(report)
 
-
-# save model and model weights
-
-save_path = "waste_classifier_resnet18.pth"
-torch.save(model.state_dict(), save_path)
-print(f"Model saved to: {save_path}")
-
-# (Example — run this in a new script or notebook when needed)
-model_loaded = models.resnet18(pretrained=True)
-model_loaded.fc = nn.Linear(model_loaded.fc.in_features, 4)  # Must match your trained head!
-model_loaded.load_state_dict(torch.load(save_path))
-model_loaded = model_loaded.to(device)
-model_loaded.eval()
-
-print("Model loaded and ready for inference.")
+print("Model ready for inference.")

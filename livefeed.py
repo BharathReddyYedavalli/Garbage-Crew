@@ -5,7 +5,7 @@ from torchvision.models import resnet18
 import torch.nn as nn
 
 # Load model
-model = resnet18(pretrained=False)
+model = resnet18(pretrained=True)
 model.fc = nn.Linear(model.fc.in_features, 4)
 model.load_state_dict(torch.load("waste_classifier_resnet18.pth", map_location=torch.device('cpu')))
 model.eval()
