@@ -1,6 +1,3 @@
-# -------------------------
-# 📌 1️⃣ IMPORTS & PATHS
-# -------------------------
 import os
 import torch
 import torch.nn as nn
@@ -13,31 +10,32 @@ import seaborn as sns
 from tqdm import tqdm
 import kagglehub
 
-# ✅ USE GPU IF AVAILABLE
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print("Using device:", device)
+print("Using device:", device) # for using gpu
 
-# ✅ DOWNLOAD DATASET USING KAGGLEHUB
 dataset_root = kagglehub.dataset_download("amankamath/garbage-v999")
 print("Dataset downloaded to:", dataset_root)
 
-# ✅ SET BASE DIR TO ACTUAL SUBFOLDER
 base_dir = os.path.join(dataset_root, "Garbage", "garbage_classification")
 print("Base dataset path:", base_dir)
 
 
-# -------------------------
-# 📌 2️⃣ TRANSFORMS & DATALOADERS
-# -------------------------
 
-# Good practice: Resize to 224 for ResNet
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
     transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
 ])
+# in main.py # parameters should include classes
+def get_transform():
+    return transforms.Compose([
+        transforms.ToPILImage(),
+        transforms.Resize((224, 224)),
+        transforms.ToTensor(),
+        transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
+    ])
 
-# Load all data
+classes = ["Compost", "Recycle", "Other", "Trashes"]
 full_dataset = datasets.ImageFolder(
     root=base_dir,
     transform=transform
@@ -45,8 +43,8 @@ full_dataset = datasets.ImageFolder(
 
 print("Classes:", full_dataset.classes)
 
-# 80% train, 20% validation
-train_size = int(0.8 * len(full_dataset))
+# training size is 85%, validation size is 15%
+train_size = int(0.85 * len(full_dataset))
 val_size = len(full_dataset) - train_size
 
 train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
@@ -58,9 +56,7 @@ val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
 print(f"Train size: {train_size}, Validation size: {val_size}")
 
 
-# -------------------------
-# 📌 3️⃣ LOAD PRE-TRAINED RESNET
-# -------------------------
+# loading dataset
 
 from torchvision import models
 
@@ -85,17 +81,13 @@ model = model.to(device)
 print(model)
 
 
-# -------------------------
-# 📌 4️⃣ LOSS, OPTIMIZER, TRAINING LOOP
-# -------------------------
 
-# ✅ CrossEntropyLoss for multi-class classification
+# loss function
 criterion = nn.CrossEntropyLoss()
 
-# ✅ Adam optimizer, works well for most image tasks
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-# ✅ Number of epochs (adjust as needed)
+# tunable iterations for training
 epochs = 5  # Start with 5 to check everything works
 
 for epoch in range(epochs):
@@ -128,11 +120,7 @@ for epoch in range(epochs):
     print(f"Epoch {epoch+1}: Loss = {running_loss/len(train_loader):.4f}, Accuracy = {100 * correct / total:.2f}%")
 
 
-# -------------------------
-# 📌 5️⃣ VALIDATION & METRICS
-# -------------------------
-
-# Switch to eval mode
+# evaluation mode
 model.eval()
 
 y_true = []
@@ -167,17 +155,12 @@ print("Classification Report:\n")
 print(report)
 
 
+# save model and model weights
 
-# -------------------------
-# 📌 6️⃣ SAVE & LOAD MODEL
-# -------------------------
-
-# ✅ SAVE MODEL WEIGHTS
 save_path = "waste_classifier_resnet18.pth"
 torch.save(model.state_dict(), save_path)
 print(f"Model saved to: {save_path}")
 
-# ✅ LOAD MODEL LATER
 # (Example — run this in a new script or notebook when needed)
 model_loaded = models.resnet18(pretrained=True)
 model_loaded.fc = nn.Linear(model_loaded.fc.in_features, 4)  # Must match your trained head!
