@@ -8,18 +8,18 @@ from model import labels
 
 class WasteMotorController:
    """Motor controller for waste classification system"""
-  
+
    def __init__(self):
        # Initialize motors (adjust OUTPUT_X to your wiring)
        self.motor_recyclable = LargeMotor(OUTPUT_A)
        self.motor_compost = LargeMotor(OUTPUT_B)
        self.motor_trash = LargeMotor(OUTPUT_C)
        self.sound = Sound()
-      
+
        # motor settings
        self.default_speed = SpeedPercent(50)
        self.default_degrees = 90
-      
+
    def handle_Battery(self):
        """Handle battery classification"""
        self.motor_recycle.on_for_degrees(self.default_speed, self.default_degrees)
@@ -36,7 +36,7 @@ class WasteMotorController:
        """Handle trash classification"""
        self.motor_trash.on_for_degrees(self.default_speed, self.default_degrees)
        # self.sound.speak("Trash")
-      
+
    def handle_Organic_Waste(self):
        """Handle organic waste classification"""
        self.motor_compost.on_for_degrees(self.default_speed, self.default_degrees)
@@ -47,7 +47,7 @@ class WasteMotorController:
        """Handle paper classification"""
        self.motor_recyclable.on_for_degrees(self.default_speed, self.default_degrees)
        # self.sound.speak("Paper")
-      
+
    def handle_Plastic(self):
        """Handle plastic classification"""
        self.motor_recyclable.on_for_degrees(self.default_speed, self.default_degrees)
@@ -58,7 +58,7 @@ class WasteMotorController:
        """Handle textiles classification"""
        self.motor_recyclable.on_for_degrees(self.default_speed, self.default_degrees)
        # self.sound.speak("Textiles")
-  
+
    def handle_Trash(self):
        """Handle trash classification"""
        self.motor_trash.on_for_degrees(self.default_speed, self.default_degrees)
@@ -74,7 +74,7 @@ class WasteMotorController:
        elif label == "Metal":
            self.handle_Metal()
        elif label == "Organic Waste":
-           self.handle_Organic_Waste() 
+           self.handle_Organic_Waste()
        elif label == "Paper":
            self.handle_Paper()
        elif label == "Plastic":
@@ -89,7 +89,7 @@ class WasteMotorController:
        """Set default motor speed and rotation degrees"""
        self.default_speed = SpeedPercent(speed_percent)
        self.default_degrees = degrees
-      
+
    def stop_all_motors(self):
        """Emergency stop for all motors"""
        self.motor_recyclable.stop()
