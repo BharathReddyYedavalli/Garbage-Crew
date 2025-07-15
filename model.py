@@ -1,11 +1,15 @@
 import os
 import torch
+import torch.cuda as cuda
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms, models
+from torchvision.models import resnet18, ResNet18_Weights
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 import matplotlib.pyplot as plt
+import numpy as np
+import cv2
 import seaborn as sns
 from tqdm import tqdm
 import kagglehub
@@ -13,7 +17,7 @@ import kagglehub
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using device:", device) # for using gpu
 
-dataset_root = kagglehub.dataset_download("amankamath/garbage-v999")
+dataset_root = kagglehub.dataset_download("asmankamath/garbage-v999")
 print("Dataset downloaded to:", dataset_root)
 
 base_dir = os.path.join(dataset_root, "Garbage", "garbage_classification")
@@ -54,20 +58,9 @@ val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
 
 print(f"Train size: {train_size}, Validation size: {val_size}")
 
-
-# loading dataset
-
-from torchvision import models
-
-# Load ResNet18 with pretrained weights
-from torchvision.models import resnet18, ResNet18_Weights
-
 weights = ResNet18_Weights.DEFAULT
 model = resnet18(weights=weights)
 
-num_ftrs = model.fc.in_features
-model.fc = nn.Linear(num_ftrs, 4)
-model = model.to(device)
 
 
 # Replace final layer to match your 4 classes:
@@ -103,7 +96,7 @@ else:
     print("Starting training process...")
     
     # tunable iterations for training
-    epochs = 5  # Start with 5 to check everything works
+    epochs = 10  # Start with 5 to check everything works
 
     for epoch in range(epochs):
         model.train()
@@ -153,11 +146,11 @@ with torch.no_grad():
         y_true.extend(labels.cpu().numpy())
         y_pred.extend(predicted.cpu().numpy())
 
-# ✅ Accuracy
+# check accuracy
 acc = accuracy_score(y_true, y_pred)
 print(f"Validation Accuracy: {acc:.2%}")
 
-# ✅ Confusion Matrix
+# confusion matrix, based upon probabilities
 cm = confusion_matrix(y_true, y_pred)
 plt.figure(figsize=(6,6))
 sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
@@ -168,7 +161,7 @@ plt.ylabel("True")
 plt.title("Confusion Matrix")
 plt.show()
 
-# ✅ Precision, Recall, F1
+# Precision, Recall, F1
 report = classification_report(y_true, y_pred, target_names=full_dataset.classes)
 print("Classification Report:\n")
 print(report)
