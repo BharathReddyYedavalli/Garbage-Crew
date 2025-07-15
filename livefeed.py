@@ -6,9 +6,22 @@ from torchvision.models import resnet18, ResNet18_Weights
 import torch.nn as nn
 import numpy as np
 
+
+# 8-class list (should match model.py)
+classes = ["Battery", "Glass", "Metal", "Organic Waste", "Paper", "Plastic", "Textiles", "Trash"]
+
+# Map each class to a bin
+def map_to_bin(label):
+    if label in ["Organic Waste"]:
+        return "Compost"
+    elif label in ["Paper", "Plastic", "Glass", "Metal"]:
+        return "Recycle"
+    else:  # Battery, Textiles, Trash
+        return "Trash"
+
 # Load model
 model = resnet18(weights=None)
-model.fc = nn.Linear(model.fc.in_features, 4)
+model.fc = nn.Linear(model.fc.in_features, 8)  # 8 outputs
 model.load_state_dict(torch.load("waste_classifier_resnet18.pth", map_location=torch.device('cpu')))
 # SET CPU TO 'CUDA' IF YOU WANT TO USE GPU
 # CUDA IS ONLY COMPATIBLE WITH PYTHON 3.11 AND BELOW, HASN'T UPDATED TO 3.12 OR 3.13 YET
@@ -112,10 +125,11 @@ while True:
                         # only show classification if confidence is above threshold
                         if confidence.item() > CONFIDENCE_THRESHOLD:
                             label = classes[predicted.item()]
+                            bin_label = map_to_bin(label)
                             confidence_pct = confidence.item() * 100
 
                             # CATEGORY-SPECIFIC ACTIONS - use motor controller
-                            waste_motor_controller.handle_classification(label) # all actions are handled in motorgroup.py
+                            waste_motor_controller.handle_classification(bin_label) # all actions are handled in motorgroup.py
                             
                             # draw bounding rectangle
                             cv2.rectangle(processed_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)

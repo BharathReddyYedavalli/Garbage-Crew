@@ -38,7 +38,7 @@ def get_transform():
         transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
     ])
 
-classes = ["Compost", "Recycle", "Other", "Trashes"]
+classes = ["Battery", "Glass", "Metal", "Organic Waste", "Paper", "Plastic", "Textiles", "Trash"]
 full_dataset = datasets.ImageFolder(
     root=base_dir,
     transform=transform
@@ -63,9 +63,9 @@ model = resnet18(weights=weights)
 
 
 
-# Replace final layer to match your 4 classes:
+# Replace final layer to match your 8 classes:
 num_ftrs = model.fc.in_features
-model.fc = nn.Linear(num_ftrs, 4)  # 4 categories: Compost, Recycle, Other, Trashes
+model.fc = nn.Linear(num_ftrs, 8)  # 8 categories: Compost, Recycle, Other, Trashes
 
 # Move to GPU or CPU
 model = model.to(device)
