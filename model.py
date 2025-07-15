@@ -6,7 +6,9 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
+from torchvision.models import resnet18, ResNet18_Weights
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
+from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2
@@ -15,156 +17,87 @@ import rainbow_tqdm
 from rainbow_tqdm import tqdm
 import kagglehub
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print("Using device:", device) # for using gpu
+data_dir = kagglehub.dataset_download("siddhantmaji/unified-waste-classification-dataset")
 
-dataset_root = kagglehub.dataset_download("siddhantmaji/unified-waste-classification-dataset")
-print("Dataset downloaded to:", dataset_root)
+print("Path to dataset files:", data_dir)
 
-base_dir = f"{dataset_root}/content/unified_dataset" # Corrected base_dir to point directly to the dataset root
-print("Base dataset path:", base_dir)
+data_dir = f"{data_dir}/content/unified_dataset"
+BATCH_SIZE = 32
+IMG_SIZE = 224
 
-
+# Preprocessing transforms only, no data augmentation
 transform = transforms.Compose([
-    transforms.Resize((224, 224)),
+    transforms.Resize((IMG_SIZE, IMG_SIZE)),
     transforms.ToTensor(),
-    transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
+    transforms.Normalize(mean=[0.485, 0.456, 0.406],
+                         std=[0.229, 0.224, 0.225])
 ])
-# in main.py # parameters should include classes
-def get_transform():
-    return transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.Resize((224, 224)),
-        transforms.ToTensor(),
-        transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
-    ])
 
-classes = [d  for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
-full_dataset = datasets.ImageFolder(
-    root=base_dir,
-    transform=transform
+# Load full dataset
+dataset = datasets.ImageFolder(root=data_dir, transform=transform)
+
+# Stratified train/val split
+targets = [sample[1] for sample in dataset.samples]
+train_idx, val_idx = train_test_split(
+    range(len(dataset)),
+    test_size=0.2,
+    stratify=targets,
+    random_state=42
 )
 
-print("Classes:", full_dataset.classes)
+train_dataset = torch.utils.data.Subset(dataset, train_idx)
+val_dataset = torch.utils.data.Subset(dataset, val_idx)
 
-# training size is 85%, validation size is 15%
-train_size = int(0.85 * len(full_dataset))
-val_size = len(full_dataset) - train_size
+train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE)
 
-train_dataset, val_dataset = random_split(full_dataset, [train_size, val_size])
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Loaders
-train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
-val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
+# MobileNetV3-Large from timm, pretrained on ImageNet
+model = timm.create_model("mobilenetv3_large_100", pretrained=True, num_classes=8)
+model.to(device)
 
-print(f"Train size: {train_size}, Validation size: {val_size}")
-
-weights = ResNet18_Weights.DEFAULT
-model = resnet18(weights=weights)
-
-
-
-# Replace final layer to match your 8 classes:
-num_ftrs = model.fc.in_features
-model.fc = nn.Linear(num_ftrs, len(classes))  # 8 categories: Compost, Recycle, Other, Trashes
-
-# Move to GPU or CPU
-model = model.to(device)
-
-print(model)
-
-
-
-# loss function
 criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=1e-4)
+EPOCHS = 10
 
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+for epoch in range(EPOCHS):
+    model.train()
+    running_loss, correct, total = 0.0, 0, 0
 
-# Check if trained model already exists
-save_path = "waste_classifier_resnet18.pth"
+    for images, labels in tqdm(train_loader, desc=f"Epoch {epoch+1}/{EPOCHS}"):
+        images, labels = images.to(device), labels.to(device)
 
-if os.path.exists(save_path):
-    print(f"Found existing trained model at {save_path}")
-    print("Loading existing model instead of training...")
+        optimizer.zero_grad()
+        outputs = model(images)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
 
-    # Load the existing trained model
-    model.load_state_dict(torch.load(save_path, map_location=device))
-    model.eval()
-    print("Model loaded successfully!")
+        running_loss += loss.item()
+        _, preds = outputs.max(1)
+        correct += (preds == labels).sum().item()
+        total += labels.size(0)
 
-else:
-    print(f"No existing model found at {save_path}")
-    print("Starting training process...")
+    acc = 100 * correct / total
+    print(f"Epoch {epoch+1}: Loss = {running_loss/len(train_loader):.4f} | Accuracy = {acc:.2f}%")
 
-    # tunable iterations for training
-    epochs = 5  # Start with 5 to check everything works
-
-    for epoch in range(epochs):
-        model.train()
-        running_loss = 0.0
-        correct = 0
-        total = 0
-
-        # tqdm for live progress bar
-        loop = tqdm(train_loader, leave=True)
-        for images, labels in loop:
-            images, labels = images.to(device), labels.to(device)
-
-            # Zero gradients, forward, backward, step
-            optimizer.zero_grad()
-            outputs = model(images)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
-
-            # Running stats
-            running_loss += loss.item()
-            _, predicted = torch.max(outputs, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-
-            loop.set_description(f"Epoch [{epoch+1}/{epochs}]")
-            loop.set_postfix(loss=loss.item(), accuracy=100 * correct / total)
-
-        print(f"Epoch {epoch+1}: Loss = {running_loss/len(train_loader):.4f}, Accuracy = {100 * correct / total:.2f}%")
-
-    # Save the newly trained model
-    torch.save(model.state_dict(), save_path)
-    print(f"Model training completed and saved to: {save_path}")
-
-
-# evaluation mode
 model.eval()
-
-y_true = []
-y_pred = []
+val_loss, correct, total = 0.0, 0, 0
 
 with torch.no_grad():
     for images, labels in val_loader:
         images, labels = images.to(device), labels.to(device)
         outputs = model(images)
-        _, predicted = torch.max(outputs, 1)
-        y_true.extend(labels.cpu().numpy())
-        y_pred.extend(predicted.cpu().numpy())
+        loss = criterion(outputs, labels)
 
-# check accuracy
-acc = accuracy_score(y_true, y_pred)
-print(f"Validation Accuracy: {acc:.2%}")
+        val_loss += loss.item()
+        _, preds = outputs.max(1)
+        correct += (preds == labels).sum().item()
+        total += labels.size(0)
 
-# confusion matrix, based upon probabilities
-cm = confusion_matrix(y_true, y_pred, labels=np.arange(len(classes)))
-plt.figure(figsize=(6,6))
-sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
-            xticklabels=classes,
-            yticklabels=classes)
-plt.xlabel("Predicted")
-plt.ylabel("True")
-plt.title("Confusion Matrix")
-plt.show()
+val_acc = 100 * correct / total
+print(f"Validation Accuracy: {val_acc:.2f}% | Loss: {val_loss/len(val_loader):.4f}")
 
-# Precision, Recall, F1
-report = classification_report(y_true, y_pred, target_names=classes)
-print("Classification Report:\n")
-print(report)
-
-print("Model ready for inference.")
+# save model to a path
+torch.save(model.state_dict(), "mobilenetv3_garbage_classifier.pth")
