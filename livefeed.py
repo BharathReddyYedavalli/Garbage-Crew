@@ -4,6 +4,14 @@ import torch
 from torchvision.models import resnet18, ResNet18_Weights
 import torch.nn as nn
 import numpy as np
+from ev3dev2.motor import LargeMotor, OUTPUT_A, OUTPUT_B, OUTPUT_C, SpeedPercent
+from ev3dev2.sound import Sound
+
+# Initialize motors (adjust OUTPUT_X to your wiring)
+motor_recycle = LargeMotor(OUTPUT_A)
+motor_compost = LargeMotor(OUTPUT_B)
+motor_trash = LargeMotor(OUTPUT_C)
+sound = Sound()
 
 # Load model
 model = resnet18(weights=None)
@@ -112,6 +120,24 @@ while True:
                         if confidence.item() > CONFIDENCE_THRESHOLD:
                             label = classes[predicted.item()]
                             confidence_pct = confidence.item() * 100
+
+                            # CATEGORY-SPECIFIC ACTIONS
+                            if label == "Recycle":
+                                print("Recycle detected!")
+                                motor_recycle.on_for_degrees(SpeedPercent(50), 90)  # Example: turn 90 degrees
+                                sound.speak("Recycle")
+                            elif label == "Compost":
+                                print("Compost detected!")
+                                motor_compost.on_for_degrees(SpeedPercent(50), 90)
+                                sound.speak("Compost")
+                            elif label == "Other":
+                                print("Other detected!")
+                                # You can assign a motor or just play a sound
+                                sound.speak("Other")
+                            elif label == "Trashes":
+                                print("Trash detected!")
+                                motor_trash.on_for_degrees(SpeedPercent(50), 90)
+                                sound.speak("Trash")
                             
                             # draw bounding rectangle
                             cv2.rectangle(processed_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
