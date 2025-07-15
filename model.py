@@ -11,7 +11,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import cv2
 import seaborn as sns
-from tqdm import tqdm
+import rainbow_tqdm
+from rainbow_tqdm import tqdm
 import kagglehub
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -20,8 +21,7 @@ print("Using device:", device) # for using gpu
 dataset_root = kagglehub.dataset_download("siddhantmaji/unified-waste-classification-dataset")
 print("Dataset downloaded to:", dataset_root)
 
-# Need to fix this later: 
-base_dir = os.path.join(dataset_root, "dataset")
+base_dir = f"{dataset_root}/content/unified_dataset" # Corrected base_dir to point directly to the dataset root
 print("Base dataset path:", base_dir)
 
 
@@ -39,7 +39,7 @@ def get_transform():
         transforms.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5])
     ])
 
-classes = ["Battery", "Glass", "Metal", "Organic Waste", "Paper", "Plastic", "Textiles", "Trash"]
+classes = [d  for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
 full_dataset = datasets.ImageFolder(
     root=base_dir,
     transform=transform
@@ -66,7 +66,7 @@ model = resnet18(weights=weights)
 
 # Replace final layer to match your 8 classes:
 num_ftrs = model.fc.in_features
-model.fc = nn.Linear(num_ftrs, 8)  # 8 categories: Compost, Recycle, Other, Trashes
+model.fc = nn.Linear(num_ftrs, len(classes))  # 8 categories: Compost, Recycle, Other, Trashes
 
 # Move to GPU or CPU
 model = model.to(device)
@@ -86,18 +86,18 @@ save_path = "waste_classifier_resnet18.pth"
 if os.path.exists(save_path):
     print(f"Found existing trained model at {save_path}")
     print("Loading existing model instead of training...")
-    
+
     # Load the existing trained model
     model.load_state_dict(torch.load(save_path, map_location=device))
     model.eval()
     print("Model loaded successfully!")
-    
+
 else:
     print(f"No existing model found at {save_path}")
     print("Starting training process...")
-    
+
     # tunable iterations for training
-    epochs = 10  # Start with 5 to check everything works
+    epochs = 5  # Start with 5 to check everything works
 
     for epoch in range(epochs):
         model.train()
@@ -152,18 +152,18 @@ acc = accuracy_score(y_true, y_pred)
 print(f"Validation Accuracy: {acc:.2%}")
 
 # confusion matrix, based upon probabilities
-cm = confusion_matrix(y_true, y_pred)
+cm = confusion_matrix(y_true, y_pred, labels=np.arange(len(classes)))
 plt.figure(figsize=(6,6))
 sns.heatmap(cm, annot=True, fmt="d", cmap="Blues",
-            xticklabels=full_dataset.classes,
-            yticklabels=full_dataset.classes)
+            xticklabels=classes,
+            yticklabels=classes)
 plt.xlabel("Predicted")
 plt.ylabel("True")
 plt.title("Confusion Matrix")
 plt.show()
 
 # Precision, Recall, F1
-report = classification_report(y_true, y_pred, target_names=full_dataset.classes)
+report = classification_report(y_true, y_pred, target_names=classes)
 print("Classification Report:\n")
 print(report)
 
