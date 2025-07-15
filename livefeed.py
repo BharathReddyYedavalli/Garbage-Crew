@@ -5,6 +5,7 @@ from torchvision.models import resnet18, ResNet18_Weights
 import torch.nn as nn
 import numpy as np
 
+
 # Load model
 model = resnet18(weights=None)
 model.fc = nn.Linear(model.fc.in_features, 4)

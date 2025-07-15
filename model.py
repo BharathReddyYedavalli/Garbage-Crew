@@ -14,6 +14,7 @@ import seaborn as sns
 from tqdm import tqdm
 import kagglehub
 
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using device:", device) # for using gpu
 
