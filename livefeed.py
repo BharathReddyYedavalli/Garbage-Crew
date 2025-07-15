@@ -1,4 +1,5 @@
 from model import get_transform, classes
+from motorgroup import waste_motor_controller # importing the motor controller
 import cv2
 import torch
 from torchvision.models import resnet18, ResNet18_Weights
@@ -113,23 +114,8 @@ while True:
                             label = classes[predicted.item()]
                             confidence_pct = confidence.item() * 100
 
-                            # CATEGORY-SPECIFIC ACTIONS
-                            if label == "Recycle":
-                                print("Recycle detected!")
-                                motor_recycle.on_for_degrees(SpeedPercent(50), 90)  # Example: turn 90 degrees
-                                sound.speak("Recycle")
-                            elif label == "Compost":
-                                print("Compost detected!")
-                                motor_compost.on_for_degrees(SpeedPercent(50), 90)
-                                sound.speak("Compost")
-                            elif label == "Other":
-                                print("Other detected!")
-                                # You can assign a motor or just play a sound
-                                sound.speak("Other")
-                            elif label == "Trashes":
-                                print("Trash detected!")
-                                motor_trash.on_for_degrees(SpeedPercent(50), 90)
-                                sound.speak("Trash")
+                            # CATEGORY-SPECIFIC ACTIONS - use motor controller
+                            waste_motor_controller.handle_classification(label) # all actions are handled in motorgroup.py
                             
                             # draw bounding rectangle
                             cv2.rectangle(processed_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
