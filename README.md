@@ -51,3 +51,10 @@ The system runs on a **Raspberry Pi** connected to a **LEGO EV3** controller tha
 
 ............to be completed...........
 
+
+
+## Resources
+
+Dataset we compiled for out model:
+https://www.kaggle.com/datasets/siddhantmaji/unified-waste-classification-dataset 
+
