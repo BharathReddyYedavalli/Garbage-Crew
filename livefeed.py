@@ -7,15 +7,6 @@ import torch.nn as nn
 import numpy as np
 
 
-# Map each class to a bin
-def map_to_bin(label):
-    if label in ["Organic Waste"]:
-        return "Compost"
-    elif label in ["Paper", "Plastic", "Glass", "Metal"]:
-        return "Recycle"
-    else:  # Battery, Textiles, Trash
-        return "Trash"
-
 # Load model
 model = resnet18(weights=None)
 model.fc = nn.Linear(model.fc.in_features, 8)  # 8 outputs
