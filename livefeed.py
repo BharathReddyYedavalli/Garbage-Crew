@@ -7,9 +7,6 @@ import torch.nn as nn
 import numpy as np
 
 
-# 8-class list (should match model.py)
-classes = ["Battery", "Glass", "Metal", "Organic Waste", "Paper", "Plastic", "Textiles", "Trash"]
-
 # Map each class to a bin
 def map_to_bin(label):
     if label in ["Organic Waste"]:
@@ -26,7 +23,6 @@ model.load_state_dict(torch.load("waste_classifier_resnet18.pth", map_location=t
 # SET CPU TO 'CUDA' IF YOU WANT TO USE GPU
 # CUDA IS ONLY COMPATIBLE WITH PYTHON 3.11 AND BELOW, HASN'T UPDATED TO 3.12 OR 3.13 YET
 
-model.eval()
 MIN_AREA_THRESHOLD = 15000  # min area for detection
 MAX_AREA_THRESHOLD = 35000  # max area for detection
 CONFIDENCE_THRESHOLD = .7  # min confidence for classification
