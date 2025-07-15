@@ -12,9 +12,8 @@ from sklearn.model_selection import train_test_split
 import matplotlib.pyplot as plt
 import numpy as np
 import cv2
+from tqdm import tqdm
 import seaborn as sns
-import rainbow_tqdm
-from rainbow_tqdm import tqdm
 import kagglehub
 
 data_dir = kagglehub.dataset_download("siddhantmaji/unified-waste-classification-dataset")
@@ -61,26 +60,46 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
 EPOCHS = 10
 
-for epoch in range(EPOCHS):
-    model.train()
-    running_loss, correct, total = 0.0, 0, 0
+# Check if trained model already exists
+save_path = "mobilenetv3_garbage_classifier.pth"
 
-    for images, labels in tqdm(train_loader, desc=f"Epoch {epoch+1}/{EPOCHS}"):
-        images, labels = images.to(device), labels.to(device)
+if os.path.exists(save_path):
+    print(f"Found existing trained model at {save_path}")
+    print("Loading existing model instead of training...")
+    
+    # Load the existing trained model
+    model.load_state_dict(torch.load(save_path, map_location=device))
+    model.eval()
+    print("Model loaded successfully!")
+    
+else:
+    print(f"No existing model found at {save_path}")
+    print("Starting training process...")
+    
+    for epoch in range(EPOCHS):
+        model.train()
+        running_loss, correct, total = 0.0, 0, 0
 
-        optimizer.zero_grad()
-        outputs = model(images)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
+        for images, labels in tqdm(train_loader, desc=f"Epoch {epoch+1}/{EPOCHS}"):
+            images, labels = images.to(device), labels.to(device)
 
-        running_loss += loss.item()
-        _, preds = outputs.max(1)
-        correct += (preds == labels).sum().item()
-        total += labels.size(0)
+            optimizer.zero_grad()
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
 
-    acc = 100 * correct / total
-    print(f"Epoch {epoch+1}: Loss = {running_loss/len(train_loader):.4f} | Accuracy = {acc:.2f}%")
+            running_loss += loss.item()
+            _, preds = outputs.max(1)
+            correct += (preds == labels).sum().item()
+            total += labels.size(0)
+
+        acc = 100 * correct / total
+        print(f"Epoch {epoch+1}: Loss = {running_loss/len(train_loader):.4f} | Accuracy = {acc:.2f}%")
+
+    # Save the newly trained model
+    torch.save(model.state_dict(), save_path)
+    print(f"Model training completed and saved to: {save_path}")
 
 model.eval()
 val_loss, correct, total = 0.0, 0, 0
@@ -99,5 +118,4 @@ with torch.no_grad():
 val_acc = 100 * correct / total
 print(f"Validation Accuracy: {val_acc:.2f}% | Loss: {val_loss/len(val_loader):.4f}")
 
-# save model to a path
-torch.save(model.state_dict(), "mobilenetv3_garbage_classifier.pth")
+print("Model ready for inference.")

@@ -138,7 +138,6 @@ while True:
                             cv2.putText(processed_frame, f'Low conf: {confidence.item()*100:.1f}%', (x, y - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
     
     else:
-        # fallback: classify entire frame (original behavior)
         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         input_tensor = transform(frame_rgb).unsqueeze(0)
 
@@ -151,7 +150,6 @@ while True:
 
         cv2.putText(processed_frame, f'{label}: {confidence_pct:.1f}%', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0,255,0), 2)
     
-    # show threshold info
     cv2.putText(processed_frame, f'Min Area: {MIN_AREA_THRESHOLD} | Max Area: {MAX_AREA_THRESHOLD}', (10, height - 50), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
     cv2.putText(processed_frame, f'Click + to increase min area, - to decrease', (10, height - 70), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
     cv2.putText(processed_frame, f'Click ] to increase max area, [ to decrease', (10, height - 90), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
@@ -159,7 +157,6 @@ while True:
     cv2.putText(processed_frame, 'Press T to toggle tracking, D for debug, Q to quit', (10, height - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
     
     if DEBUG_MODE:
-        # different masks for debugging
         cv2.imshow("Foreground Mask - Motion Detection", fgMask_motion)
         cv2.imshow("Static Mask - Edge Detection", static_mask)
         cv2.imshow("Combined Mask", combined_mask)
