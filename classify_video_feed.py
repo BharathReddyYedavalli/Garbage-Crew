@@ -22,12 +22,12 @@ DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 # Load classifier
 model = timm.create_model("mobilenetv3_large_100", pretrained=False, num_classes=8)
 model.load_state_dict(
-    torch.load("mobilenetv3_garbage_classifier.pth", map_location=DEVICE)
+    torch.load("models\mobilenetv3_garbage_classifier.pth", map_location=DEVICE)
 )
 model.to(DEVICE).eval()
 
 # Load YOLO object detector (e.g., yolov8n.pt or yolov5n.pt for small, fast models)
-yolo_model = YOLO("yolov8n.pt")  # Or your trained detection model
+yolo_model = YOLO("models\yolov8n.pt")  # Or your trained detection model
 
 # Preprocessing for classifier
 preprocess = transforms.Compose(
