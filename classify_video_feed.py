@@ -3,8 +3,9 @@ import numpy as np
 import timm
 import torch
 from torchvision import transforms
+from ultralytics import YOLO  # works for YOLOv5 and YOLOv8
 
-# Define constants
+# Constants
 IMG_SIZE = 224
 CLASSES = [
     "battery",
@@ -18,14 +19,17 @@ CLASSES = [
 ]
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load model
+# Load classifier
 model = timm.create_model("mobilenetv3_large_100", pretrained=False, num_classes=8)
 model.load_state_dict(
     torch.load("mobilenetv3_garbage_classifier.pth", map_location=DEVICE)
 )
 model.to(DEVICE).eval()
 
-# Define preprocessing
+# Load YOLO object detector (e.g., yolov8n.pt or yolov5n.pt for small, fast models)
+yolo_model = YOLO("yolov8n.pt")  # Or your trained detection model
+
+# Preprocessing for classifier
 preprocess = transforms.Compose(
     [
         transforms.ToPILImage(),
@@ -35,7 +39,7 @@ preprocess = transforms.Compose(
     ]
 )
 
-# Initialize webcam
+# Webcam
 cap = cv2.VideoCapture(0)
 if not cap.isOpened():
     raise IOError("Webcam not accessible")
@@ -46,23 +50,35 @@ with torch.no_grad():
         if not ret:
             break
 
-        # Center crop and preprocess
-        h, w, _ = frame.shape
-        min_dim = min(h, w)
-        start_x, start_y = (w - min_dim) // 2, (h - min_dim) // 2
-        cropped = frame[start_y : start_y + min_dim, start_x : start_x + min_dim]
-        input_tensor = preprocess(cropped).unsqueeze(0).to(DEVICE)
+        # Run YOLO detection
+        results = yolo_model(frame)[0]  # First result
+        boxes = results.boxes.xyxy.cpu().numpy()  # xyxy format
 
-        # Inference
-        outputs = model(input_tensor)
-        pred = torch.argmax(outputs, 1).item()
-        label = CLASSES[pred]
+        for box in boxes:
+            x1, y1, x2, y2 = map(int, box)
+            obj_crop = frame[y1:y2, x1:x2]
 
-        # Display
-        cv2.putText(
-            frame, f"{label}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2
-        )
-        cv2.imshow("Garbage Classifier", frame)
+            if obj_crop.size == 0:
+                continue
+
+            input_tensor = preprocess(obj_crop).unsqueeze(0).to(DEVICE)
+            outputs = model(input_tensor)
+            pred = torch.argmax(outputs, 1).item()
+            label = CLASSES[pred]
+
+            # Draw detection + classification label
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
+            cv2.putText(
+                frame,
+                label,
+                (x1, y1 - 10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.8,
+                (0, 255, 0),
+                2,
+            )
+
+        cv2.imshow("Garbage Detection & Classification", frame)
 
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
