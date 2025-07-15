@@ -112,7 +112,6 @@ while True:
                         # only show classification if confidence is above threshold
                         if confidence.item() > CONFIDENCE_THRESHOLD:
                             label = classes[predicted.item()]
-                            bin_label = map_to_bin(label)
                             confidence_pct = confidence.item() * 100
 
                             # CATEGORY-SPECIFIC ACTIONS - use motor controller
