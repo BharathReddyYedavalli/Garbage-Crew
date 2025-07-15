@@ -17,10 +17,11 @@ import kagglehub
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print("Using device:", device) # for using gpu
 
-dataset_root = kagglehub.dataset_download("amankamath/garbage-v999")
+dataset_root = kagglehub.dataset_download("siddhantmaji/unified-waste-classification-dataset")
 print("Dataset downloaded to:", dataset_root)
 
-base_dir = os.path.join(dataset_root, "Garbage", "garbage_classification")
+# Need to fix this later: 
+base_dir = os.path.join(dataset_root, "dataset")
 print("Base dataset path:", base_dir)
 
 
