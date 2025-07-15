@@ -1,11 +1,11 @@
 import os
+import timm
 import torch
 import torch.cuda as cuda
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, random_split
-from torchvision import datasets, transforms, models
-from torchvision.models import resnet18, ResNet18_Weights
+from torchvision import datasets, transforms, model
 from sklearn.metrics import confusion_matrix, classification_report, accuracy_score
 import matplotlib.pyplot as plt
 import numpy as np
