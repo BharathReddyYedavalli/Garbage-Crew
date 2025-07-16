@@ -1,20 +1,23 @@
 import ev3dev2.motor
 from ev3dev2.motor import LargeMotor, OUTPUT_A, OUTPUT_B, OUTPUT_C, SpeedPercent
 from ev3dev2.sound import Sound
-from model import labels
 
 
 
-
-class WasteMotorController:
-   """Motor controller for waste classification system"""
-
+class GarbageSortController:
+    # motor controller for sorting garbage
    def __init__(self):
-       # Initialize motors (adjust OUTPUT_X to your wiring)
-       self.motor_recyclable = LargeMotor(OUTPUT_A)
-       self.motor_compost = LargeMotor(OUTPUT_B)
-       self.motor_trash = LargeMotor(OUTPUT_C)
-       self.sound = Sound()
+       try:
+           # adjust output ports for motors
+           self.motor_recyclable = LargeMotor(OUTPUT_A)
+           self.motor_compost = LargeMotor(OUTPUT_B)
+           self.motor_trash = LargeMotor(OUTPUT_C)
+           self.sound = Sound()
+           self.motors_available = True
+           print("EV3 motors initialized successfully")
+       except Exception as e:
+           print(f"EV3 motors not available: {e}")
+           self.motors_available = False
 
        # motor settings
        self.default_speed = SpeedPercent(50)
@@ -22,13 +25,18 @@ class WasteMotorController:
 
    def handle_Battery(self):
        """Handle battery classification"""
-       self.motor_recycle.on_for_degrees(self.default_speed, self.default_degrees)
+       if self.motors_available:
+           self.motor_recyclable.on_for_degrees(self.default_speed, self.default_degrees)
+       else:
+           print("Motor action: Battery -> Recyclable bin")
        # self.sound.speak("Battery")
-
 
    def handle_Glass(self):
        """Handle glass classification"""
-       self.motor_recycle.on_for_degrees(self.default_speed, self.default_degrees)
+       if self.motors_available:
+           self.motor_recyclable.on_for_degrees(self.default_speed, self.default_degrees)
+       else:
+           print("Motor action: Glass -> Recyclable bin")
        # self.sound.speak("Glass")
 
 
@@ -66,36 +74,39 @@ class WasteMotorController:
 
 
    def handle_classification(self, label):
-       """Handle classification based on label"""
-       if label == "Battery":
+       """Main handler that routes classifications to appropriate motors"""
+       print(f"Handling classification: {label}")  # debug output
+       
+       if label == "battery":
            self.handle_Battery()
-       elif label == "Glass":
+       elif label == "glass":
            self.handle_Glass()
-       elif label == "Metal":
+       elif label == "metal":
            self.handle_Metal()
-       elif label == "Organic Waste":
+       elif label == "organic_waste":
            self.handle_Organic_Waste()
-       elif label == "Paper":
+       elif label == "paper_cardboard":
            self.handle_Paper()
-       elif label == "Plastic":
+       elif label == "plastic":
            self.handle_Plastic()
-       elif label == "Textiles":
+       elif label == "textiles":
            self.handle_Textiles()
-       elif label == "Trash":
+       elif label == "trash":
            self.handle_Trash()
        else:
-           pass # ignore unknown classifications
+           print(f"Unknown classification: {label}")  # debug for unknown labels
    def set_motor_settings(self, speed_percent=50, degrees=90):
-       """Set default motor speed and rotation degrees"""
        self.default_speed = SpeedPercent(speed_percent)
        self.default_degrees = degrees
 
    def stop_all_motors(self):
-       """Emergency stop for all motors"""
-       self.motor_recyclable.stop()
-       self.motor_compost.stop()
-       self.motor_trash.stop()
+       if self.motors_available:
+           self.motor_recyclable.stop()
+           self.motor_compost.stop()
+           self.motor_trash.stop()
+       else:
+           print("Motor action: Stop all motors")
 
 
 # global instance for easy import
-waste_motor_controller = WasteMotorController()
+garbage_sort_controller = GarbageSortController()
