@@ -10,7 +10,7 @@ The system runs on a **Raspberry Pi** connected to a **LEGO EV3** controller tha
 
 ## Features
 
-- Real-time image classification using a pretrained **ResNet/EfficientNet/ViT** model.
+- Real-time image classification using a pretrained **MobileNetV3/Yolov8n** model.
 - Fine-tuned on various datasets for **Trash**, **Compost**, and **Recycling**.
 - Raspberry Pi controls an EV3 motorized trapdoor for physical sorting.
 - Low-cost, portable, and easy to expand.
