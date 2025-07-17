@@ -1,112 +1,118 @@
-import ev3dev2.motor
-from ev3dev2.motor import LargeMotor, OUTPUT_A, OUTPUT_B, OUTPUT_C, SpeedPercent
-from ev3dev2.sound import Sound
-
-
+import time
+from ev3dev2.motor import LargeMotor, OUTPUT_A, OUTPUT_B, OUTPUT_C, OUTPUT_D, SpeedPercent
 
 class GarbageSortController:
-    # motor controller for sorting garbage
-   def __init__(self):
-       try:
-           # adjust output ports for motors
-           self.motor_recyclable = LargeMotor(OUTPUT_A)
-           self.motor_compost = LargeMotor(OUTPUT_B)
-           self.motor_trash = LargeMotor(OUTPUT_C)
-           self.sound = Sound()
-           self.motors_available = True
-           print("EV3 motors initialized successfully")
-       except Exception as e:
-           print(f"EV3 motors not available: {e}")
-           self.motors_available = False
+    """Sequence: panels → rods → trap opens → trash drops → trap closes → rods retract → panels reset."""
 
-       # motor settings
-       self.default_speed = SpeedPercent(50)
-       self.default_degrees = 90
+    def __init__(self):
+        try:
+            self.panel_left = LargeMotor(OUTPUT_A)
+            self.panel_right = LargeMotor(OUTPUT_B)
+            self.rod_motor = LargeMotor(OUTPUT_C)
+            self.trap_motor = LargeMotor(OUTPUT_D)
+            self.motors_available = True
+            print("Motors initialized.")
+        except Exception as e:
+            print(f"Motor init failed: {e}")
+            self.motors_available = False
 
-   def handle_Battery(self):
-       """Handle battery classification"""
-       if self.motors_available:
-           self.motor_recyclable.on_for_degrees(self.default_speed, self.default_degrees)
-       else:
-           print("Motor action: Battery -> Recyclable bin")
-       # self.sound.speak("Battery")
+        self.speed = SpeedPercent(50)
+        self.panel_deg = 45
+        self.rod_deg = 40
+        self.trap_deg = 95
 
-   def handle_Glass(self):
-       """Handle glass classification"""
-       if self.motors_available:
-           self.motor_recyclable.on_for_degrees(self.default_speed, self.default_degrees)
-       else:
-           print("Motor action: Glass -> Recyclable bin")
-       # self.sound.speak("Glass")
+    def shift_panels(self, direction):
+        """45° shift: 'left', 'right', or None."""
+        if not self.motors_available:
+            print(f"Panels move {direction or 'none'} (simulated).")
+            return
+        deg = self.panel_deg if direction == 'left' else -self.panel_deg if direction == 'right' else 0
+        if deg:
+            self.panel_left.on_for_degrees(self.speed, deg, block=False)
+            self.panel_right.on_for_degrees(self.speed, deg)
+        time.sleep(0.2)
 
+    def reset_panels(self):
+        """Return panels to center."""
+        if not self.motors_available:
+            print("Panels reset to center.")
+            return
+        self.panel_left.on_for_degrees(self.speed, -self.panel_deg, block=False)
+        self.panel_right.on_for_degrees(self.speed, -self.panel_deg)
+        time.sleep(0.2)
 
-   def handle_Metal(self):
-       """Handle trash classification"""
-       self.motor_trash.on_for_degrees(self.default_speed, self.default_degrees)
-       # self.sound.speak("Trash")
+    def extend_rods(self):
+        """Raise support rods."""
+        if not self.motors_available:
+            print("Rods extend.")
+            return
+        self.rod_motor.on_for_degrees(self.speed, self.rod_deg)
+        time.sleep(0.2)
 
-   def handle_Organic_Waste(self):
-       """Handle organic waste classification"""
-       self.motor_compost.on_for_degrees(self.default_speed, self.default_degrees)
-       # self.sound.speak("Organic Waste")
+    def retract_rods(self):
+        """Lower rods."""
+        if not self.motors_available:
+            #print("Rods retract.")
+            return
+        self.rod_motor.on_for_degrees(self.speed, -self.rod_deg)
+        time.sleep(0.2)
 
+    def open_trap(self):
+        """Open trap by moving downward."""
+        if not self.motors_available:
+            #print("Trap opens.")
+            return
+        self.trap_motor.on_for_degrees(self.speed, -self.trap_deg)
+        time.sleep(0.2)
 
-   def handle_Paper(self):
-       """Handle paper classification"""
-       self.motor_recyclable.on_for_degrees(self.default_speed, self.default_degrees)
-       # self.sound.speak("Paper")
+    def close_trap(self):
+        """Close trap by moving upward."""
+        if not self.motors_available:
+            #print("Trap closes.")
+            return
+        self.trap_motor.on_for_degrees(self.speed, self.trap_deg)
+        time.sleep(0.2)
 
-   def handle_Plastic(self):
-       """Handle plastic classification"""
-       self.motor_recyclable.on_for_degrees(self.default_speed, self.default_degrees)
-       # self.sound.speak("Plastic")
+    def handle_classification(self, label):
+        #print(f"→ Classified: {label}")
+        if label in ("glass", "textiles", "battery"):
+            #print("⚠️ Disallowed item: no movement.")
+            return
 
+        direction = {
+            "trash": "right",
+            "compost": None,
+            "paper_cardboard": "left",
+            "plastic": "left",
+            "metal": "left"
+        }.get(label)
 
-   def handle_Textiles(self):
-       """Handle textiles classification"""
-       self.motor_recyclable.on_for_degrees(self.default_speed, self.default_degrees)
-       # self.sound.speak("Textiles")
+        if direction is None and label not in ("compost", "trash"):
+            #print(f"Unknown label '{label}'; aborting.")
+            return
 
-   def handle_Trash(self):
-       """Handle trash classification"""
-       self.motor_trash.on_for_degrees(self.default_speed, self.default_degrees)
-       # self.sound.speak("Trash")
+        self.shift_panels(direction)
+        self.extend_rods()
+        self.open_trap()
+        time.sleep(0.5)  # allow trash to fall
+        self.close_trap()
+        self.retract_rods()
+        self.reset_panels()
 
+    def set_motor_settings(self, speed=50, panel_deg=45, rod_deg=90, trap_deg=80):
+        self.speed = SpeedPercent(speed)
+        self.panel_deg = panel_deg
+        self.rod_deg = rod_deg
+        self.trap_deg = trap_deg
+        print(f"[CONFIG] speed {speed}%, panel {panel_deg}°, rod {rod_deg}°, trap {trap_deg}°")
 
-   def handle_classification(self, label):
-       """Main handler that routes classifications to appropriate motors"""
-       print(f"Handling classification: {label}")  # debug output
-       
-       if label == "battery":
-           self.handle_Battery()
-       elif label == "glass":
-           self.handle_Glass()
-       elif label == "metal":
-           self.handle_Metal()
-       elif label == "organic_waste":
-           self.handle_Organic_Waste()
-       elif label == "paper_cardboard":
-           self.handle_Paper()
-       elif label == "plastic":
-           self.handle_Plastic()
-       elif label == "textiles":
-           self.handle_Textiles()
-       elif label == "trash":
-           self.handle_Trash()
-       else:
-           print(f"Unknown classification: {label}")  # debug for unknown labels
-   def set_motor_settings(self, speed_percent=50, degrees=90):
-       self.default_speed = SpeedPercent(speed_percent)
-       self.default_degrees = degrees
+    def stop_all_motors(self):
+        if self.motors_available:
+            self.panel_left.stop()
+            self.panel_right.stop()
+            self.rod_motor.stop()
+            self.trap_motor.stop()
+        #print("[STOP] All motors stopped.")
 
-   def stop_all_motors(self):
-       if self.motors_available:
-           self.motor_recyclable.stop()
-           self.motor_compost.stop()
-           self.motor_trash.stop()
-       else:
-           print("Motor action: Stop all motors")
-
-
-# global instance for easy import
+# Global instance
 garbage_sort_controller = GarbageSortController()
