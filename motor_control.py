@@ -94,7 +94,7 @@ class GarbageSortController:
         self.shift_panels(direction)
         self.extend_rods()
         self.open_trap()
-        time.sleep(0.5)  # allow trash to fall
+        time.sleep(0.5)  # this is to allow the trash to fall
         self.close_trap()
         self.retract_rods()
         self.reset_panels()
