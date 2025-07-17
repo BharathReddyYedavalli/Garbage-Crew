@@ -50,7 +50,7 @@ class GarbageSortController:
         time.sleep(0.2)
 
     def retract_rods(self):
-        """Lower rods."""
+        """Lower support rods."""
         if not self.motors_available:
             # print("Rods retract.")
             return
@@ -58,7 +58,7 @@ class GarbageSortController:
         time.sleep(0.2)
 
     def open_trap(self):
-        """Open trap by moving downward."""
+        """Open trap doors."""
         if not self.motors_available:
             # print("Trap opens.")
             return
@@ -66,7 +66,7 @@ class GarbageSortController:
         time.sleep(0.2)
 
     def close_trap(self):
-        """Close trap by moving upward."""
+        """Close trap doors."""
         if not self.motors_available:
             # print("Trap closes.")
             return
@@ -76,7 +76,7 @@ class GarbageSortController:
     def handle_classification(self, label):
         print(f"→ Classified: {label}")
         if label in ("glass", "textiles", "battery"):
-            # print("⚠️ Disallowed item: no movement.")
+            # print("Disallowed item: no movement.")
             return
 
         direction = {
@@ -88,7 +88,7 @@ class GarbageSortController:
         }.get(label)
 
         if direction is None and label not in ("compost", "trash"):
-            # print(f"Unknown label '{label}'; aborting.")
+            # print(f"Unknown label '{label}'; not allowed.")
             return
 
         self.shift_panels(direction)
@@ -112,7 +112,7 @@ class GarbageSortController:
             self.panel_right.stop()
             self.rod_motor.stop()
             self.trap_motor.stop()
-        # print("[STOP] All motors stopped.")
+        # print("All motors stopped.")
 
 # Global instance
 garbage_sort_controller = GarbageSortController()
