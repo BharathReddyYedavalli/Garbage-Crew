@@ -20,6 +20,21 @@ use_quantized = args.quantized
 use_yolo = args.yolo
 snapshot_mode = args.snapshot
 
+if use_quantized:
+    # torch.backends.quantized.engine = "qnnpack"
+    torch.set_num_threads(2)
+    model = torch.jit.load(
+        "./models/mobilenetv3_garbage_classifier_quantized.pt", map_location="cpu"
+    )
+else:
+    model = torch.load(
+        "./models/mobilenetv3_garbage_classifier_full.pt",
+        map_location=DEVICE,
+        weights_only=False,
+    )
+    model.to(DEVICE)
+model.eval()
+
 # Optional YOLO import and model load
 if use_yolo:
     from ultralytics import YOLO
@@ -42,21 +57,6 @@ CLASSES = [
     "trash",
 ]
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-if use_quantized:
-    # torch.backends.quantized.engine = "qnnpack"
-    torch.set_num_threads(2)
-    model = torch.jit.load(
-        "./models/mobilenetv3_garbage_classifier_quantized.pt", map_location="cpu"
-    )
-else:
-    model = torch.load(
-        "./models/mobilenetv3_garbage_classifier_full.pt",
-        map_location=DEVICE,
-        weights_only=False,
-    )
-    model.to(DEVICE)
-model.eval()
 
 # Preprocessing
 preprocess = transforms.Compose(
@@ -85,6 +85,9 @@ with torch.no_grad():
     last_fps_time = time.time()
     fps = 0.0
 
+    boxes = np.empty((0, 4))
+    results = None
+
     while True:
         # Always read a new frame if not frozen
         if not frozen:
@@ -98,7 +101,7 @@ with torch.no_grad():
         # Only run detection/classification if frozen (snapshot taken), or if not in snapshot mode
         if not snapshot_mode or frozen:
             if use_yolo:
-                if frame_count % 5 == 0:
+                if frame_count % 3 == 0:
                     results = yolo_model(display_frame, imgsz=480)[0]
                     boxes = results.boxes.xyxy.cpu().numpy()
 
