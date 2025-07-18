@@ -1,6 +1,5 @@
 import cv2
 import numpy as np
-import timm
 import torch
 from torchvision import transforms
 
@@ -32,11 +31,14 @@ CLASSES = [
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Load classifier
-model = timm.create_model("mobilenetv3_large_100", pretrained=False, num_classes=8)
-model.load_state_dict(
+# model = timm.create_model("mobilenetv3_large_100", pretrained=False, num_classes=8)
+# model.load_state_dict(
     torch.load("models/mobilenetv3_garbage_classifier.pth", map_location=DEVICE)
 )
-model.to(DEVICE).eval()
+# model.to(DEVICE).eval()
+
+model = torch.jit.load("models/mobilenetv3_quant_jit.pt", map_location=DEVICE)
+model.eval()
 
 # Preprocessing
 preprocess = transforms.Compose(
