@@ -1,20 +1,33 @@
+import argparse
+import time
+
 import cv2
 import numpy as np
 import torch
 from torchvision import transforms
 
-# Ask user preferences
-use_yolo = input("Enable YOLO object detection? (Y/n): ").lower() != "n"
-snapshot_mode = (
-    input("Enable snapshot mode instead of live feed? (Y/n): ").lower() != "n"
+parser = argparse.ArgumentParser(description="Garbage Classifier")
+parser.add_argument(
+    "-q", "--quantized", action="store_true", help="Use quantized model"
 )
+parser.add_argument("-y", "--yolo", action="store_true", help="Enable YOLO detection")
+parser.add_argument(
+    "-s", "--snapshot", action="store_true", help="Enable snapshot mode"
+)
+args = parser.parse_args()
 
+use_quantized = args.quantized
+use_yolo = args.yolo
+snapshot_mode = args.snapshot
 
 # Optional YOLO import and model load
 if use_yolo:
     from ultralytics import YOLO
 
-    yolo_model = YOLO("models/yolov8n.pt")  # Replace with your own model if needed
+    # yolo_model = YOLO("models/yolov8n.pt")  # Replace with your own model if needed
+    yolo_model = YOLO(
+        "./models/yolo11n.pt"
+    )  # latest YOLOv11 model, pretty much same latency as yolov8 but more accurate
 
 # Constants
 IMG_SIZE = 224
@@ -30,14 +43,19 @@ CLASSES = [
 ]
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Load classifier
-# model = timm.create_model("mobilenetv3_large_100", pretrained=False, num_classes=8)
-# model.load_state_dict(
-#    torch.load("models/mobilenetv3_garbage_classifier.pth", map_location=DEVICE)
-# )
-# model.to(DEVICE).eval()
-
-model = torch.jit.load("models/mobilenetv3_quant_jit.pt", map_location=DEVICE)
+if use_quantized:
+    # torch.backends.quantized.engine = "qnnpack"
+    torch.set_num_threads(2)
+    model = torch.jit.load(
+        "./models/mobilenetv3_garbage_classifier_quantized.pt", map_location="cpu"
+    )
+else:
+    model = torch.load(
+        "./models/mobilenetv3_garbage_classifier_full.pt",
+        map_location=DEVICE,
+        weights_only=False,
+    )
+    model.to(DEVICE)
 model.eval()
 
 # Preprocessing
@@ -63,6 +81,10 @@ with torch.no_grad():
     frozen = False
     freeze_frame = None
 
+    frame_count = 0
+    last_fps_time = time.time()
+    fps = 0.0
+
     while True:
         # Always read a new frame if not frozen
         if not frozen:
@@ -76,8 +98,9 @@ with torch.no_grad():
         # Only run detection/classification if frozen (snapshot taken), or if not in snapshot mode
         if not snapshot_mode or frozen:
             if use_yolo:
-                results = yolo_model(display_frame)[0]
-                boxes = results.boxes.xyxy.cpu().numpy()
+                if frame_count % 5 == 0:
+                    results = yolo_model(display_frame, imgsz=480)[0]
+                    boxes = results.boxes.xyxy.cpu().numpy()
 
                 for box in boxes:
                     x1, y1, x2, y2 = map(int, box)
@@ -123,7 +146,25 @@ with torch.no_grad():
                     2,
                 )
 
-        # Always show the current frame
+        # FPS calculation
+        frame_count += 1
+        current_time = time.time()
+        if current_time - last_fps_time >= 1.0:
+            fps = frame_count / (current_time - last_fps_time)
+            last_fps_time = current_time
+            frame_count = 0
+
+        # Draw FPS on frame
+        cv2.putText(
+            display_frame,
+            f"FPS: {fps:.1f}",
+            (10, display_frame.shape[0] - 10),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.7,
+            (255, 255, 0),
+            2,
+        )
+
         cv2.imshow("Garbage Classifier", display_frame)
 
         key = cv2.waitKey(1) & 0xFF
