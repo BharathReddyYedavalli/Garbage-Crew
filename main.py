@@ -4,7 +4,10 @@ import time
 import cv2
 import numpy as np
 import torch
-from torchvision import transforms
+import torch.nn as nn
+from torchvision import models, transforms
+
+print(torch.__version__)
 
 parser = argparse.ArgumentParser(description="Garbage Classifier")
 parser.add_argument(
@@ -20,12 +23,25 @@ use_quantized = args.quantized
 use_yolo = args.yolo
 snapshot_mode = args.snapshot
 
+# Constants
+IMG_SIZE = 224
+CLASSES = [
+    "battery",
+    "glass",
+    "metal",
+    "organic_waste",
+    "paper_cardboard",
+    "plastic",
+    "textiles",
+    "trash",
+]
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 if use_quantized:
-    # torch.backends.quantized.engine = "qnnpack"
+    torch.backends.quantized.engine = "qnnpack"
     torch.set_num_threads(2)
-    model = torch.jit.load(
-        "./models/mobilenetv3_garbage_classifier_quantized.pt", map_location="cpu"
-    )
+
+    model = torch.jit.load("./models/quantized_mobilejit.pt", map_location="cpu")
 else:
     model = torch.load(
         "./models/mobilenetv3_garbage_classifier_full.pt",
@@ -43,20 +59,6 @@ if use_yolo:
     yolo_model = YOLO(
         "./models/yolo11n.pt"
     )  # latest YOLOv11 model, pretty much same latency as yolov8 but more accurate
-
-# Constants
-IMG_SIZE = 224
-CLASSES = [
-    "battery",
-    "glass",
-    "metal",
-    "organic_waste",
-    "paper_cardboard",
-    "plastic",
-    "textiles",
-    "trash",
-]
-DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Preprocessing
 preprocess = transforms.Compose(
