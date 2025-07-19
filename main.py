@@ -17,11 +17,15 @@ parser.add_argument("-y", "--yolo", action="store_true", help="Enable YOLO detec
 parser.add_argument(
     "-s", "--snapshot", action="store_true", help="Enable snapshot mode"
 )
+parser.add_argument(
+    "-p", "--pretrained", action="store_true", help="Use pretrained model"
+)
 args = parser.parse_args()
 
 use_quantized = args.quantized
 use_yolo = args.yolo
 snapshot_mode = args.snapshot
+use_pretrained = args.pretrained
 
 # Constants
 IMG_SIZE = 224
@@ -38,16 +42,26 @@ CLASSES = [
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 if use_quantized:
-    torch.backends.quantized.engine = "qnnpack"
+    # torch.backends.quantized.engine = "qnnpack"
     torch.set_num_threads(2)
 
-    model = torch.jit.load("./models/quantized_mobilejit.pt", map_location="cpu")
+    if use_pretrained:
+        model = models.quantization.mobilenet_v3_large(quantize=True, weights="DEFAULT")
+        model.classifier[3] = nn.quantized.Linear(1280, len(CLASSES))
+        model = torch.jit.script(model)
+    else:
+        model = torch.jit.load("./models/quantized_mobilejit.pt", map_location="cpu")
 else:
-    model = torch.load(
-        "./models/mobilenetv3_garbage_classifier_full.pt",
-        map_location=DEVICE,
-        weights_only=False,
-    )
+    if use_pretrained:
+        model = models.mobilenet_v3_large(weights="DEFAULT")
+        model.classifier[3] = nn.Linear(1280, len(CLASSES))
+    else:
+        model = torch.load(
+            "./models/mobilenetv3_garbage_classifier_full.pt",
+            map_location=DEVICE,
+            weights_only=False,
+        )
+    model = torch.jit.script(model)
     model.to(DEVICE)
 model.eval()
 
@@ -72,6 +86,10 @@ preprocess = transforms.Compose(
 
 # Webcam setup
 cap = cv2.VideoCapture(0)
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, IMG_SIZE)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, IMG_SIZE)
+cap.set(cv2.CAP_PROP_FPS, 36)
+
 if not cap.isOpened():
     raise IOError("Webcam not accessible")
 
